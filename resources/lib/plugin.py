@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 import routing
 import xbmc
 import xbmcaddon
@@ -19,16 +21,14 @@ def list_shows(type):
     xbmcplugin.setContent(plugin.handle, "tvshows")
     soup = get_page(_baseurl + "porady")
     listing = []
-    articles = soup.find_all(
-        "div", {"class": "c-show-wrapper"})[int(type)].find_all("a")
+    articles = soup.find_all("div", {"class": "c-show-wrapper"})[int(type)].find_all("a")
 
     for article in articles:
-        title = article["data-tracking-tile-name"]
-        list_item = xbmcgui.ListItem(title)
+        title = article["data-tracking-tile-name"].encode('utf-8')
+        list_item = xbmcgui.ListItem(label=title)
         list_item.setInfo("video", {"mediatype": "tvshow", "title": title})
         list_item.setArt({"poster": img_res(article.div.img["data-src"])})
-        listing.append((plugin.url_for(list_episodes, category=True,
-                                       show_url=article["href"], showtitle=title), list_item, True))
+        listing.append((plugin.url_for(list_episodes, category=True,show_url=article["href"], showtitle=title), list_item, True))
 
     xbmcplugin.addDirectoryItems(plugin.handle, listing, len(listing))
     xbmcplugin.endOfDirectory(plugin.handle)
@@ -43,7 +43,7 @@ def list_shows_menu():
         _addon.getLocalizedString(30010),
     ]
     for article in articles:
-        list_item = xbmcgui.ListItem(article)
+        list_item = xbmcgui.ListItem(label=article)
         listing.append(
             (plugin.url_for(list_shows, articles.index(article)), list_item, True))
     xbmcplugin.addDirectoryItems(plugin.handle, listing, len(listing))
@@ -65,15 +65,11 @@ def list_recent_episodes():
     article_hero = soup.find("div", {"class": "c-hero"})
 
     try:
-        show_title = article_hero.find(
-            "h2", {"class": "title"}).find("a").get_text()
-        title = article_hero.find(
-            "h3", {"class": "subtitle"}).find("a").get_text()
-        dur = article_hero.find(
-            "time", {"class": "duration"}).get_text()
+        show_title = article_hero.find("h2", {"class": "title"}).find('a').get_text().encode('utf-8')
+        title = article_hero.find("h3", {"class": "subtitle"}).find('a').get_text().encode('utf-8')
+        dur = article_hero.find("time", {"class": "duration"}).get_text()
         aired = article_hero.find("time", {"class": "date"})["datetime"]
-        video = article_hero.find(
-            "div", {"class": "actions"}).find("a")["href"]
+        video = article_hero.find("div", {"class": "actions"}).find('a')["href"]
     except:
         pass
 
@@ -81,8 +77,7 @@ def list_recent_episodes():
         if dur:
             dur = get_duration(
                 re.sub(r"[a-z]", ':', (dur.replace(" ", "")))[:-1])
-        list_item = xbmcgui.ListItem(
-            "[COLOR blue]{0}[/COLOR] · {1}".format(show_title, title))
+        list_item = xbmcgui.ListItem("[COLOR blue]{0}[/COLOR] · {1}".format(show_title, title))
         list_item.setProperty("IsPlayable", "true")
         list_item.setArt(
             {"icon": img_res(article_hero.find("img")["data-src"])})
@@ -103,13 +98,12 @@ def list_recent_episodes():
                 False,
             )
         )
-    articles = soup.find("div", {
-        "class": "c-article-transformer-carousel swiper-container js-article-transformer-carousel"}).find_all("article")
+    articles = soup.find("div", {"class": "c-article-transformer-carousel swiper-container js-article-transformer-carousel"}).find_all("article")
     for article in articles:
         menuitems = []
 
-        show_title = article["data-tracking-tile-show-name"]
-        title = article["data-tracking-tile-name"]
+        show_title = article["data-tracking-tile-show-name"].encode('utf-8')
+        title = article["data-tracking-tile-name"].encode('utf-8')
         dur = article.find("time", {"class": "duration"})
         show_url = article.find("a", {"class": "category"})["href"]
 
@@ -118,7 +112,7 @@ def list_recent_episodes():
         menuitems.append(
             (
                 _addon.getLocalizedString(30005),
-                "Container.Update(" + plugin.url_for(list_episodes, category="True",
+                "XBMC.Container.Update(" + plugin.url_for(list_episodes, category="True",
                                                      show_url=show_url) + ")",
             )
         )
@@ -165,14 +159,14 @@ def list_episodes():
     show_title = None
     for article in articles:
         if '-voyo' not in article['class']:
-            show_title = article["data-tracking-tile-show-name"]
-            title = article["data-tracking-tile-name"]
+            show_title = article["data-tracking-tile-show-name"].encode('utf-8')
+            title = article["data-tracking-tile-name"].encode('utf-8')
             dur = article.find("time", {"class": "duration"})
             if dur:
                 dur = get_duration(dur.get_text())
             aired = article.find("time", {"class": "date"})["datetime"]
 
-            list_item = xbmcgui.ListItem(title)
+            list_item = xbmcgui.ListItem(label=title)
             list_item.setInfo(
                 "video",
                 {
@@ -245,9 +239,6 @@ def get_video(url):
     DRM = "com.widevine.alpha"
     source_type = _addon.getSetting("source_type")
     soup = get_page(url)
-    # desc = soup.find('meta', {'name':'description'})['content'].encode('utf-8').replace('&nbsp;',' ')
-    # showtitle = soup.find('h1', {'class':'title'}).find('a').get_text().encode('utf-8')
-    # title = soup.find('h2', {'class':'subtitle'}).get_text().encode('utf-8')
     embeded = get_page(soup.find("div", {"class": "js-login-player"}).find("iframe")["data-src"])
     json_data = json.loads(re.compile('{"tracks":(.+?),"duration"').findall(str(embeded))[0])
 
