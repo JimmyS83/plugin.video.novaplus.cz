@@ -28,7 +28,7 @@ def list_shows(type):
         list_item = xbmcgui.ListItem(label=title)
         list_item.setInfo("video", {"mediatype": "tvshow", "title": title})
         list_item.setArt({"poster": img_res(article.div.img["data-src"])})
-        listing.append((plugin.url_for(list_episodes, category=True,show_url=article["href"], showtitle=title), list_item, True))
+        listing.append((plugin.url_for(list_episodes, category=True,show_url=article["href"].encode('utf-8'), showtitle=title), list_item, True))
 
     xbmcplugin.addDirectoryItems(plugin.handle, listing, len(listing))
     xbmcplugin.endOfDirectory(plugin.handle)
@@ -153,8 +153,13 @@ def list_episodes():
             (plugin.url_for(get_category, show_url=url), list_item, True))
         url = plugin.args["show_url"][0] + "/videa/cele-dily"
     soup = get_page(url)
-    articles = soup.find(
-        "div", "c-article-wrapper").find_all("article", "c-article")
+    try:
+        articles = soup.find("div", "c-article-wrapper").find_all("article", "c-article")
+    except:
+        xbmcplugin.addDirectoryItems(plugin.handle, listing, len(listing))
+        xbmcplugin.endOfDirectory(plugin.handle)
+        return
+
     count = 0
     show_title = None
     for article in articles:
