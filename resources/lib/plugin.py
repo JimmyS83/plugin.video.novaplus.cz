@@ -240,8 +240,6 @@ def list_latest_videos():
         (plugin.url_for(list_latest_videos, content=125), list_item, True))
 
     url = None
-    print("nase data")
-    print(plugin.args)
     if "show_url" in plugin.args:
         url = plugin.args["show_url"][0]
     elif "content" in plugin.args:
@@ -256,8 +254,8 @@ def list_latest_videos():
     show_title = None
     for article in articles:
         if '-voyo' not in article['class']:
-            show_title = article["data-tracking-tile-show-name"]
-            title = article["data-tracking-tile-name"]
+            show_title = article["data-tracking-tile-show-name"].encode('utf-8')
+            title = article["data-tracking-tile-name"].encode('utf-8')
             dur = article.find("time", {"class": "duration"})
             if dur:
                 dur = get_duration(dur.get_text())
