@@ -370,63 +370,103 @@ def get_category():
 
 @plugin.route("/get_video/<path:url>")
 def get_video(url):
+    archivesk_embedded_url = True 
     PROTOCOL = "mpd"
     DRM = "com.widevine.alpha"
     source_type = _addon.getSetting("source_type")
     soup = get_page(url)
+    # xbmc.log('\n\n\nSOUP {0}\n\n\n'.format(soup))     
+    
+    if archivesk_embedded_url:  # https://github.com/archivczsk/archivczsk-doplnky/blob/main/plugin_video_novaplus/provider.py
+        try:
+            embeded_url = soup.find("div", {"class": "js-login-player"}).find("iframe")["data-src"]   
+        except:
+            try:
+                embeded_url = soup.find("div", {"class": "js-player-detach-container"}).find("iframe")["src"]
+            except:
+                xbmc.log('\n\n\nURL Videa nenalezena\n\n\n')
 
-    json_stream = json.loads(
-        soup.find(
-            "script", type="application/ld+json", text=re.compile(r"embedUrl")
-        ).string
-    )
+        embeded = get_page(embeded_url)
 
-    if "video" in json_stream:
-        embeded_url = json_stream["video"]["embedUrl"]
-    elif "embedUrl" in json_stream:
-        embeded_url = json_stream["embedUrl"]
-    else:
-        pass
+        try:
+            json_data = json.loads(
+                re.compile('"source":(.+?),"poster"').findall(str(embeded))[0]
+            )
+        except:
+            json_data = None
 
-    embeded = get_page(embeded_url)
+        if json_data:
+            stream_data = json_data['sources'][0]
+            list_item = xbmcgui.ListItem()
 
-    json_data = json.loads(
-        re.compile('{"tracks":(.+?),"duration"').findall(str(embeded))[0]
-    )
-    if json_data:
-        stream_data = json_data[source_type][0]
-        list_item = xbmcgui.ListItem()
-
-        if not "drm" in stream_data and source_type == "HLS":
-            list_item.setPath(stream_data["src"])
+            if not "drm" in stream_data and source_type == "HLS":
+                list_item.setPath(stream_data["src"])                     
+                    
+            xbmcplugin.setResolvedUrl(plugin.handle, True, list_item)
         else:
-            is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
-            if is_helper.check_inputstream():
-                stream_data = json_data["DASH"][0]
-                list_item.setPath(stream_data["src"])
-                list_item.setContentLookup(False)
-                list_item.setMimeType("application/xml+dash")
-                list_item.setProperty("inputstream", "inputstream.adaptive")
-                list_item.setProperty("inputstream.adaptive.manifest_type", PROTOCOL)
-                if "drm" in stream_data:
-                    drm = stream_data["drm"][1]
-                    list_item.setProperty("inputstream.adaptive.license_type", DRM)
-                    list_item.setProperty(
-                        "inputstream.adaptive.license_key",
-                        drm["serverURL"]
-                        + "|"
-                        + "X-AxDRM-Message="
-                        + drm["headers"][0]["value"]
-                        + "|R{SSM}|",
-                    )
-        xbmcplugin.setResolvedUrl(plugin.handle, True, list_item)
-    else:
-        xbmcgui.Dialog().notification(
-            _addon.getAddonInfo("name"),
-            _addon.getLocalizedString(30006),
-            xbmcgui.NOTIFICATION_ERROR,
-            5000,
+            xbmcgui.Dialog().notification(
+                _addon.getAddonInfo("name"),
+                _addon.getLocalizedString(30006),
+                xbmcgui.NOTIFICATION_ERROR,
+                5000,
+            )
+    
+    else:   # original cz/sk embedURL - https://github.com/xbmc-kodi-cz/plugin.video.novaplus.cz/blob/master/resources/lib/plugin.py
+    
+        json_stream = json.loads(
+            soup.find("script", type="application/ld+json", text=re.compile(r"embedUrl")).string
         )
+
+        if "video" in json_stream:
+            embeded_url = json_stream["video"]["embedUrl"]
+        elif "embedUrl" in json_stream:
+            embeded_url = json_stream["embedUrl"]
+        else:
+            pass
+        
+
+        embeded = get_page(embeded_url)
+        json_data = json.loads(
+            re.compile('{"tracks":(.+?),"duration"').findall(str(embeded))[0]
+        )
+        
+        
+        if json_data:
+            stream_data = json_data[source_type][0]
+            list_item = xbmcgui.ListItem()
+
+            if not "drm" in stream_data and source_type == "HLS":
+                list_item.setPath(stream_data["src"])
+            else:
+                is_helper = inputstreamhelper.Helper(PROTOCOL, drm=DRM)
+                if is_helper.check_inputstream():
+                    stream_data = json_data["DASH"][0]           
+                    list_item.setPath(stream_data["src"])
+                    list_item.setContentLookup(False)
+                    list_item.setMimeType("application/xml+dash")
+                    list_item.setProperty("inputstream", "inputstream.adaptive")
+                    list_item.setProperty("inputstream.adaptive.manifest_type", PROTOCOL)
+                    if "drm" in stream_data:
+                        drm = stream_data["drm"][1]
+                        list_item.setProperty("inputstream.adaptive.license_type", DRM)
+                        list_item.setProperty(
+                            "inputstream.adaptive.license_key",
+                            drm["serverURL"]
+                            + "|"
+                            + "X-AxDRM-Message="
+                            + drm["headers"][0]["value"]
+                            + "|R{SSM}|",
+                        )
+                                    
+                    
+            xbmcplugin.setResolvedUrl(plugin.handle, True, list_item)
+        else:
+            xbmcgui.Dialog().notification(
+                _addon.getAddonInfo("name"),
+                _addon.getLocalizedString(30006),
+                xbmcgui.NOTIFICATION_ERROR,
+                5000,
+            )
 
 
 def get_duration(dur):
